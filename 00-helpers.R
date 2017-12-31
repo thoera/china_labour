@@ -1,18 +1,26 @@
-theme_bw_2 <- function(base_size = 16, text_size = 18) {
+theme_bw_2 <- function(base_size = 16, text_size = 18, title_size = 22) {
   bg_color <- "#ffffff"
   bg_rect <- element_rect(fill = bg_color, color = bg_color)
   theme_bw(base_size = base_size) +
-    theme(axis.title = element_text(size = text_size),
-          plot.background = bg_rect,
-          panel.background = bg_rect,
-          panel.border = element_blank(),
-          axis.ticks = element_blank(),
-          panel.grid.major = element_line(color = "grey80", size = 0.25),
-          panel.grid.minor = element_blank(),
-          strip.background = element_rect(color = "grey80", fill = bg_color),
-          legend.background = bg_rect,
-          legend.key.width = unit(1.5, "line"),
-          legend.key = element_blank())
+    theme(
+      text = element_text(family = "Roboto Condensed"),
+      plot.title = element_text(size = title_size, margin = margin(b = 10)),
+      plot.subtitle = element_text(margin = margin(b = 20)),
+      plot.caption = element_text(face = "italic"),
+      axis.title = element_text(size = text_size),
+      axis.ticks = element_blank(),
+      plot.background = bg_rect,
+      panel.background = bg_rect,
+      panel.border = element_blank(),
+      panel.grid.major = element_line(color = "grey80", size = 0.25,
+                                      linetype = 2),
+      panel.grid.minor = element_blank(),
+      strip.background = element_blank(),
+      strip.text = element_text(hjust = 0),
+      legend.background = bg_rect,
+      legend.key.width = unit(1.5, "line"),
+      legend.key = element_blank()
+    )
 }
 
 draw_boxplot <- function(df, var, by_var = NULL,
@@ -158,7 +166,8 @@ draw_lollipop <- function(df, var, by_var = NULL,
                               yend = "n"),
                    color = "#595959", size = 1.25) +
       scale_x_discrete(limits = order_var) +
-      scale_y_continuous(labels = scales::format_format(big.mark = " ")) +
+      scale_y_continuous(labels = scales::format_format(big.mark = " "),
+                         expand = c(0.02, 2)) +
       labs(title = title, subtitle = subtitle,
            x = x_title, y = y_title,
            caption = caption) +
@@ -207,14 +216,22 @@ draw_multilineplot <- function(df, var, by_var = NULL,
   var_sym <- rlang::sym(var)
   by_var_sym <- rlang::sym(by_var)
   
-  order_var <- df %>%
-    count(!!var_sym, sort = TRUE) %>%
-    pull(!!var_sym)
-  
   count_var <- df %>%
     group_by(!!by_var_sym) %>%
     count(!!var_sym, sort = TRUE) %>%
-    ungroup() %>%
+    ungroup()
+
+  order_var <- count_var %>%
+    group_by(!!var_sym) %>%
+    count(wt = n, sort = TRUE) %>%
+    pull(!!var_sym)
+  
+  count_var <- expand.grid(unique(df[[var]]),
+                           unique(df[[by_var]]),
+                           stringsAsFactors = FALSE) %>%
+    setNames(c(var, by_var)) %>%
+    left_join(count_var, by = c(var, by_var)) %>%
+    mutate(n = ifelse(is.na(n), 0, n)) %>%
     mutate(fct = factor(!!var_sym, levels = order_var))
   
   ggplot(data = count_var, aes_string(x = by_var, y = "n")) +
