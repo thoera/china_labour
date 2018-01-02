@@ -49,7 +49,7 @@ time_series <- ggplot(ts, aes(x = timespan, y = n)) +
   scale_x_discrete(breaks = paste0(years[-1], "-01")) +
   facet_wrap(~ id, ncol = 3, scales = "free") +
   labs(title = paste("Nombre d'incidents répertoriés par",
-                     "le China Labour Bulletin entre 2011 et 2016"),
+                     "le China Labour Bulletin entre 2011 et 2017"),
        subtitle = paste("Note : l'échelle des ordonnées est différente",
                         "pour chaque graphique"),
        x = "", y = "",
