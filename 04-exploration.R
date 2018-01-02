@@ -5,11 +5,20 @@ library("magick")
 source("00-helpers.R", encoding = "UTF-8")
 source("02-read_data.R", encoding = "UTF-8")
 
+# filter out data --------------------------------------------------------------
+
+# df <- filter(df, date < as.Date("2017-01-01", "%Y-%m-%d"))
+
 # format data ------------------------------------------------------------------
 
 # add the year
-df <- mutate(df, year = format(date, "%Y")) %>%
-  mutate(year_s = ifelse(year == "2011", year, paste0("´", substr(year, 3, 4))))
+df <- mutate(df, year = format(date, "%Y"))
+years <- sort(unique(df[["year"]]))
+
+# format it
+df <- mutate(df, year_s = ifelse(year == years[1],
+                                 year, paste0("´", substr(year, 3, 4))))
+years_s <- c(years[1], paste0("´", substr(years[-1], 3, 4)))
 
 # time series ------------------------------------------------------------------
 
@@ -37,10 +46,10 @@ ts <- bind_rows(ts_week, ts_month) %>%
 
 time_series <- ggplot(ts, aes(x = timespan, y = n)) +
   geom_line(aes(group = 1)) +
-  scale_x_discrete(breaks = paste0(2012:2017, "-01")) +
+  scale_x_discrete(breaks = paste0(years[-1], "-01")) +
   facet_wrap(~ id, ncol = 3, scales = "free") +
   labs(title = paste("Nombre d'incidents répertoriés par",
-                     "le China Labour Bulletin entre 2011 et 2017"),
+                     "le China Labour Bulletin entre 2011 et 2016"),
        subtitle = paste("Note : l'échelle des ordonnées est différente",
                         "pour chaque graphique"),
        x = "", y = "",
@@ -65,7 +74,7 @@ year_lollipop <- draw_lollipop(
   caption = "données : http://www.clb.org.hk/",
   panel.grid.major.y = element_blank()
 ) +
-  scale_x_discrete(limits = as.character(rev(2011:2017)))
+  scale_x_discrete(limits = as.character(rev(unique(df[["year"]]))))
 
 year_lollipop
 

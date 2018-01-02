@@ -237,7 +237,7 @@ draw_multilineplot <- function(df, var, by_var = NULL,
   ggplot(data = count_var, aes_string(x = by_var, y = "n")) +
     geom_line(aes(group = fct, color = fct), size = size) +
     geom_point(aes(color = fct), size = size * 2) +
-    scale_x_discrete(limits = c("2011", paste0("´", 12:17))) +
+    scale_x_discrete(limits = years_s) +
     scale_y_continuous(labels = scales::format_format(big.mark = " ")) +
     facet_wrap(~ fct, ncol = ncol) +
     labs(title = title, subtitle = subtitle,
