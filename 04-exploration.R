@@ -35,7 +35,7 @@ ts_month <- df %>%
 ts <- bind_rows(ts_week, ts_month) %>%
   mutate(id = factor(id, levels = c("Par semaine", "Par mois")))
 
-ggplot(ts, aes(x = timespan, y = n)) +
+time_series <- ggplot(ts, aes(x = timespan, y = n)) +
   geom_line(aes(group = 1)) +
   scale_x_discrete(breaks = paste0(2012:2017, "-01")) +
   facet_wrap(~ id, ncol = 3, scales = "free") +
@@ -47,6 +47,8 @@ ggplot(ts, aes(x = timespan, y = n)) +
        caption = "données : http://www.clb.org.hk/") +
   theme_bw_2()
 
+time_series
+
 # univariate and "by year" plots -----------------------------------------------
 
 # ---- year ----
@@ -56,7 +58,7 @@ count(df, year, sort = TRUE)
 year_lollipop <- draw_lollipop(
   df,
   var = "year",
-  title = paste("En forte augmentation entre 2011 et 2015",
+  title = paste("En forte augmentation entre 2011 et 2015,",
                 "le nombre d'incidents diminue depuis"),
   subtitle = paste("Évolution du nombre d'incidents répertoriés",
                    "par le China Labour Bulletin entre 2011 et 2017"),
@@ -76,9 +78,9 @@ df_province <- mutate(df, province = ifelse(province == 0, NA, province))
 province_lollipop <- draw_lollipop(
   df_province,
   var = "province",
-  title = paste("La province de Guangdong (Canton) concentre",
+  title = paste("La région de Guangdong (Canton) concentre",
                 "la grande majorité des incidents"),
-  subtitle = paste("Nombre d'incidents répertoriés par province",
+  subtitle = paste("Nombre d'incidents répertoriés par région",
                    "par le China Labour Bulletin"),
   caption = "données : http://www.clb.org.hk/",
   panel.grid.major.y = element_blank()
@@ -91,8 +93,8 @@ province_multilineplot <- draw_multilineplot(
   var = "province",
   by_var = "year_s",
   title = paste("L'évolution du nombre d'incidents suit une",
-                "trajectoire plutôt semblable dans l'ensemble des provinces"),
-  subtitle = paste("Évolution du nombre d'incidents répertoriés par province",
+                "trajectoire plutôt semblable dans l'ensemble des région"),
+  subtitle = paste("Évolution du nombre d'incidents répertoriés par région",
                    "entre 2011 et 2017 par le China Labour Bulletin"),
   ncol = 6,
   caption = "données : http://www.clb.org.hk/"
@@ -172,12 +174,13 @@ participants_multilineplot
 count(df, employer, sort = TRUE)
 
 # group together "unknown" and NA
-df <- mutate(df, employer = ifelse(employer == "unknown", NA, employer))
+df_employer <- mutate(df, employer = ifelse(employer == "unknown", NA, employer)) %>%
+  mutate(employer = str_to_title(employer))
 
 # keep only the first twelve employers
 df_employer <- right_join(
-  df,
-  df %>%
+  df_employer,
+  df_employer %>%
     filter(!is.na(employer)) %>%
     count(employer, sort = TRUE) %>%
     select(employer) %>%
@@ -442,7 +445,7 @@ employee_demands_involve_multilineplot <- draw_multilineplot(
   by_var = "year_s",
   ncol = 6,
   title = paste("Après cinq années de croissance, le nombre de demandes",
-                "d'arriérés de salaires à significativement diminué",
+                "d'arriérés de salaires a significativement diminué",
                 "en 2016 et 2017"),
   subtitle = paste("Évolution du nombre d'incidents répertoriés",
                    "par type de demande(s) entre 2011 et 2017",
@@ -540,10 +543,37 @@ response_to_collective_action_multilineplot
 # maps -------------------------------------------------------------------------
 
 # load a shapefile of the administrative regions of china
-china <- read_sf("data/shapefiles/CHN_adm1.shp")
+sf_china <- read_sf("data/shapefiles/CHN_adm1.shp")
 
 # change the CRS to web mercator (EPSG:3857)
-china <- st_transform(china, "+init=epsg:3857")
+sf_china <- st_transform(sf_china, "+init=epsg:3857")
+
+# load a dataset with the population per administrative region in 2010
+pop_2010 <- read_tsv("data/province_population_2010.csv")
+
+# rename a few provinces to match the datasets and join
+sf_china <- sf_china %>%
+  mutate(province = case_when(
+    NAME_1 == "Nei Mongol" ~ "Inner Mongolia",
+    NAME_1 == "Ningxia Hui" ~ "Ningxia",
+    NAME_1 == "Xizang" ~ "Tibet",
+    NAME_1 == "Xinjiang Uygur" ~ "Xinjiang",
+    TRUE ~ NAME_1
+  )) %>%
+  left_join(pop_2010, by = "province")
+
+ggplot(data = sf_china, aes(fill = population)) +
+  geom_sf(color = "grey99", size = 0.15) +
+  viridis::scale_fill_viridis(name = "Population",
+                              na.value = "grey85",
+                              labels = scales::format_format(scientific = FALSE,
+                                                             big.mark = " ")) +
+  labs(title = paste("Population par région administrative en 2010"),
+       x = "", y = "",
+       caption = "données : National Bureau of Statistics of China") +
+  theme_bw_2(base_size = 20) +
+  theme(axis.text = element_blank(),
+        panel.grid.major = element_line(color = "#ffffff", size = 0))
 
 # get a count of the number of incidents by province for each year
 count_province_year <- df %>%
@@ -552,61 +582,87 @@ count_province_year <- df %>%
   count(province) %>%
   ungroup()
 
-# rename a few provinces to match the two datasets and join the counts and
-# the shapefile
+# join the counts and the shapefile and compute the number of incidents
+# per 1M habitants
 df_map_year <- data_frame(
   province = rep(unique(count_province_year[["province"]]),
                  each = length(unique(count_province_year[["year"]]))),
   year = rep(unique(count_province_year[["year"]]),
              length(unique(count_province_year[["province"]])))
 ) %>%
-  mutate(NAME_1 = case_when(
-    province == "Inner Mongolia" ~ "Nei Mongol",
-    province == "Ningxia" ~ "Ningxia Hui",
-    province == "Tibet" ~ "Xizang",
-    province == "Xinjiang" ~ "Xinjiang Uygur",
-    TRUE ~ province
-  )) %>%
   left_join(count_province_year, by = c("province", "year")) %>%
-  left_join(china, by = "NAME_1")
+  left_join(sf_china, by = "province") %>%
+  mutate(n_1M = n / (population / 1000000))
 
-# compute the min and the max of the number of incidents
-min_max <- df_map_year %>%
-  filter(!is.na(n)) %>%
-  arrange(n) %>%
-  slice(c(1, n())) %>%
-  pull(n)
-
-# draw a map for each year 
-map_china <- function(df, filter_year, limits_scale = min_max) {
+# draw a map for each year
+map_china <- function(df, metric, filter_year, title,
+                      subtitle = "", legend, caption = "") {
+  metric_sym <- rlang::sym(metric)
+  
+  # compute the min and the max for the given metric
+  min_max <- df_map_year %>%
+    filter(!is.na(!!metric_sym)) %>%
+    arrange(!!metric_sym) %>%
+    slice(c(1, n())) %>%
+    pull(!!metric_sym)
+  
   df %>%
     filter(year == filter_year) %>%
-    ggplot(aes(fill = n)) +
+    ggplot(aes_string(fill = metric)) +
     geom_sf(color = "grey99", size = 0.15) +
-    viridis::scale_fill_viridis(name = "Nombre d'incidents",
-                                limits = limits_scale,
+    viridis::scale_fill_viridis(name = legend,
+                                limits = min_max,
                                 na.value = "grey85") +
     annotate("text", label = filter_year, x = 14500000, y = 2500000,
              color = "grey25", size = 28, family = "Roboto Condensed") +
-    labs(title = paste("Répartition du nombre d'incidents répertoriés",
-                       "par province par le China Labour Bulletin"),
-         x = "", y = "") +
+    labs(title = title, subtitle = subtitle,
+         x = "", y = "",
+         caption = caption) +
     theme_bw_2(base_size = 20) +
     theme(axis.text = element_blank(),
           panel.grid.major = element_line(color = "#ffffff", size = 0))
 }
 
 maps <- map(unique(count_province_year[["year"]]),
-            ~ map_china(df = df_map_year, filter_year = .x))
+            ~ map_china(
+              df = df_map_year, metric = "n", filter_year = .x,
+              title =
+                paste("Répartition du nombre d'incidents répertoriés",
+                      "par région administrative par le China Labour Bulletin"),
+              legend = "Nombre d'incidents",
+              caption = "données : http://www.clb.org.hk/"))
 names(maps) <- unique(count_province_year[["year"]])
+maps
 
 # walk(names(maps), ~ ggsave(paste0("plots/map_", .x, ".png"), maps[[.x]],
 #                            width = 16, height = 9, dpi = 120))
 
+maps_1M <- map(unique(count_province_year[["year"]]),
+               ~ map_china(
+                 df = df_map_year, metric = "n_1M", filter_year = .x,
+                 title = paste("Répartition du nombre d'incidents répertoriés",
+                               "par région administrative",
+                               "par le China Labour Bulletin"),
+                 legend = "Nombre d'incidents\npar million d'habitants",
+                 caption = paste("données : National Bureau of Statistics",
+                                 "of China - http://www.clb.org.hk/")))
+names(maps_1M) <- unique(count_province_year[["year"]])
+maps_1M
+
+# walk(names(maps_1M), ~ ggsave(paste0("plots/map_1M_", .x, ".png"),
+#                               maps_1M[[.x]],
+#                               width = 16, height = 9, dpi = 120))
+
 # create a gif - warning: this is really slow!
 # img <- image_graph(width = 1920, height = 1080, res = 96)
 # maps <- map(unique(count_province_year[["year"]]),
-#             ~ print(map_china(df = df_map_year, filter_year = .x)))
+#             ~ print(map_china(
+#               df = df_map_year, metric = "n", filter_year = .x,
+#               title =
+#                 paste("Répartition du nombre d'incidents répertoriés",
+#                       "par région administrative par le China Labour Bulletin"),
+#               legend = "Nombre d'incidents",
+#               caption = "données : http://www.clb.org.hk/")))
 # dev.off()
 # 
 # animation <- image_animate(img, 1)
