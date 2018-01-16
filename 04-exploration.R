@@ -7,7 +7,9 @@ source("02-read_data.R", encoding = "UTF-8")
 
 # filter out data --------------------------------------------------------------
 
-# df <- filter(df, date < as.Date("2017-01-01", "%Y-%m-%d"))
+# the way the clb collects the data changed at the start of 2017: 
+# to avoid any problem we'll only work with years from 2011 to 2016
+df <- filter(df, date < as.Date("2017-01-01", "%Y-%m-%d"))
 
 # format data ------------------------------------------------------------------
 
@@ -49,7 +51,7 @@ time_series <- ggplot(ts, aes(x = timespan, y = n)) +
   scale_x_discrete(breaks = paste0(years[-1], "-01")) +
   facet_wrap(~ id, ncol = 3, scales = "free") +
   labs(title = paste("Nombre d'incidents répertoriés par",
-                     "le China Labour Bulletin entre 2011 et 2017"),
+                     "le China Labour Bulletin entre 2011 et 2016"),
        subtitle = paste("Note : l'échelle des ordonnées est différente",
                         "pour chaque graphique"),
        x = "", y = "",
@@ -67,10 +69,10 @@ count(df, year, sort = TRUE)
 year_lollipop <- draw_lollipop(
   df,
   var = "year",
-  title = paste("En forte augmentation entre 2011 et 2015,",
-                "le nombre d'incidents diminue depuis"),
+  title = paste("Après avoir fortement augmenté entre 2011 et 2015,",
+                "le nombre d'incidents a été stable en 2016"),
   subtitle = paste("Évolution du nombre d'incidents répertoriés",
-                   "par le China Labour Bulletin entre 2011 et 2017"),
+                   "par le China Labour Bulletin entre 2011 et 2016"),
   caption = "données : http://www.clb.org.hk/",
   panel.grid.major.y = element_blank()
 ) +
@@ -101,10 +103,11 @@ province_multilineplot <- draw_multilineplot(
   df = filter(df_province, !(is.na(province) | province == "Tibet")), 
   var = "province",
   by_var = "year_s",
-  title = paste("L'évolution du nombre d'incidents suit une",
-                "trajectoire plutôt semblable dans l'ensemble des région"),
+  title = paste("Si le nombre d'incidents a diminué en 2016 dans la région",
+                "de Guangdong, la tendance à la hausse persiste pour",
+                "un certain nombre d'autres régions"),
   subtitle = paste("Évolution du nombre d'incidents répertoriés par région",
-                   "entre 2011 et 2017 par le China Labour Bulletin"),
+                   "entre 2011 et 2016 par le China Labour Bulletin"),
   ncol = 6,
   caption = "données : http://www.clb.org.hk/"
 )
@@ -118,7 +121,7 @@ count(df, industry, sort = TRUE)
 industry_lollipop <- draw_lollipop(
   df,
   var = "industry",
-  title = paste("Bâtiment et production sont les deux secteurs",
+  title = paste("Production et bâtiment sont les deux secteurs",
                 "où le nombre d'incidents est le plus important"),
   subtitle = paste("Nombre d'incidents répertoriés par type d'industrie",
                    "par le China Labour Bulletin"),
@@ -132,10 +135,11 @@ industry_multilineplot <- draw_multilineplot(
   df,
   var = "industry",
   by_var = "year_s",
-  title = paste("La baisse manifeste du nombre d'incidents en 2017 est",
-                "observable dans l'ensemble des secteurs"),
+  title = paste("Si le nombre d'incidents a fortement baissé dans le secteur",
+                "de la production en 2016, il a continué à augmenter dans",
+                "quasiment tous les autres secteurs"),
   subtitle = paste("Évolution du nombre d'incidents répertoriés par type",
-                   "d'industrie entre 2011 et 2017",
+                   "d'industrie entre 2011 et 2016",
                    "par le China Labour Bulletin"),
   ncol = 3,
   caption = "données : http://www.clb.org.hk/"
@@ -168,10 +172,11 @@ participants_multilineplot <- draw_multilineplot(
   var = "participants",
   by_var = "year_s",
   ncol = 3,
-  title = paste("Aucun incident impliquant plus de 10 000 personnes",
-                "n'a été répertorié lors des trois dernières années"),
+  title = paste("La forte croissance du nombre d'incidents entre 2011 et 2016",
+                "s'explique par celle des incidents impliquant 100 personnes",
+                "ou moins"),
   subtitle = paste("Évolution du nombre d'incidents répertoriés par nombre",
-                   "de participants entre 2011 et 2017",
+                   "de participants entre 2011 et 2016",
                    "par le China Labour Bulletin"),
   caption = "données : http://www.clb.org.hk/"
 )
@@ -201,7 +206,7 @@ employer_lollipop <- draw_lollipop(
   df_employer,
   var = "employer",
   title = paste("Plusieurs entreprises ont connu des incidents",
-                "à de multiples reprises entre 2011 et 2017"),
+                "à de multiples reprises entre 2011 et 2016"),
   subtitle = paste("Nombre d'incidents répertoriés par entreprise",
                    "par le China Labour Bulletin"),
   caption = "données : http://www.clb.org.hk/",
@@ -222,7 +227,8 @@ df <- mutate(df, enterprise_type = ifelse(is.na(enterprise_type),
 enterprise_type_lollipop <- draw_lollipop(
   df,
   var = "enterprise_type",
-  title = "Les entreprises privées sont les plus sujettes aux incidents",
+  title = paste("Les entreprises privées sont les plus sujettes",
+                "aux incidents"),
   subtitle = paste("Nombre d'incidents répertoriés par type d'entreprise",
                    "par le China Labour Bulletin"),
   caption = "données : http://www.clb.org.hk/",
@@ -236,10 +242,10 @@ enterprise_type_multilineplot <- draw_multilineplot(
   var = "enterprise_type",
   by_var = "year_s",
   ncol = 3,
-  title = paste("La baisse des incidents sur les années 2016 et 2017",
-                "est manifeste pour l'ensemble des types d'entreprise"),
+  title = paste("Le nombre d'incidents a continué à légèrement augmenter",
+                "en 2016 pour les entreprises d'État"),
   subtitle = paste("Évolution du nombre d'incidents répertoriés",
-                   "par type d'entreprise entre 2011 et 2017",
+                   "par type d'entreprise entre 2011 et 2016",
                    "par le China Labour Bulletin"),
   caption = "données : http://www.clb.org.hk/"
 )
@@ -313,9 +319,9 @@ action_taken_involve_multilineplot <- draw_multilineplot(
   var = "action_taken_involve_labels",
   by_var = "year_s",
   ncol = 3,
-  title = "Le nombre de sit-in à très fortement baissé en 2017",
+  title = "Le nombre de sit-in a fortement décliné en 2016",
   subtitle = paste("Évolution du nombre d'incidents répertoriés",
-                   "par type d'action(s) entre 2011 et 2017",
+                   "par type d'action(s) entre 2011 et 2016",
                    "par le China Labour Bulletin"),
   caption = "données : http://www.clb.org.hk/"
 )
@@ -453,11 +459,11 @@ employee_demands_involve_multilineplot <- draw_multilineplot(
   var = "employee_demands_involve_labels",
   by_var = "year_s",
   ncol = 6,
-  title = paste("Après cinq années de croissance, le nombre de demandes",
-                "d'arriérés de salaires a significativement diminué",
-                "en 2016 et 2017"),
+  title = paste("Si toujours très majoritaire, le nombre de demandes",
+                "d'arriérés de salaires a stagné en 2016 après deux années",
+                "de très forte croissance"),
   subtitle = paste("Évolution du nombre d'incidents répertoriés",
-                   "par type de demande(s) entre 2011 et 2017",
+                   "par type de demande(s) entre 2011 et 2016",
                    "par le China Labour Bulletin"),
   caption = "données : http://www.clb.org.hk/"
 )
@@ -524,8 +530,8 @@ count(df_response, response_to_collective_action_labels, sort = TRUE)
 response_to_collective_action_lollipop <- draw_lollipop(
   df_response,
   var = "response_to_collective_action_labels",
-  title = paste("La réponse apportée aux demandes est généralement policière",
-                "lorsque connue"),
+  title = paste("La réponse apportée aux demandes des salariés",
+                "est généralement policière lorsque connue"),
   subtitle = paste("Nombre d'incidents répertoriés par type de réponse(s)",
                    "par le China Labour Bulletin"),
   caption = "données : http://www.clb.org.hk/",
@@ -542,7 +548,7 @@ response_to_collective_action_multilineplot <- draw_multilineplot(
   title = paste("Peu de différences tendancielles sont observables entre",
                 "les principales réponses apportées"),
   subtitle = paste("Évolution du nombre d'incidents répertoriés par",
-                   "type de réponse(s) entre 2011 et 2017",
+                   "type de réponse(s) entre 2011 et 2016",
                    "par le China Labour Bulletin"),
   caption = "données : http://www.clb.org.hk/"
 )

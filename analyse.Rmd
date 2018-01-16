@@ -21,16 +21,27 @@ library("magick")
 source("00-helpers.R", encoding = "UTF-8")
 source("02-read_data.R", encoding = "UTF-8")
 
+# filter out data --------------------------------------------------------------
+
+# the way the clb collects the data changed at the start of 2017: 
+# to avoid any problem we'll only work with years from 2011 to 2016
+df <- filter(df, date < as.Date("2017-01-01", "%Y-%m-%d"))
+
 # format data ------------------------------------------------------------------
 
 # add the year
-df <- mutate(df, year = format(date, "%Y")) %>%
-  mutate(year_s = ifelse(year == "2011", year, paste0("´", substr(year, 3, 4))))
+df <- mutate(df, year = format(date, "%Y"))
+years <- sort(unique(df[["year"]]))
+
+# format it
+df <- mutate(df, year_s = ifelse(year == years[1],
+                                 year, paste0("´", substr(year, 3, 4))))
+years_s <- c(years[1], paste0("´", substr(years[-1], 3, 4)))
 ```
 
 ## Données
 
-Les données ici explorées sont issues du China Labour Bulletin (<http://www.clb.org.hk/>). La période considérée va de début 2011 à fin 2017 (ce qui correspond à l'ensemble de l'historique disponible).
+Les données ici explorées sont issues du China Labour Bulletin (<http://www.clb.org.hk/>). La période considérée va de début 2011 à fin 2016 (nous ne considérons pas l'année 2017 car la méthode de collecte des données a changé).
 
 L'un des objectifs du China Labour Bulletin est de recenser les différents incidents impliquant des travailleurs dans l'ensemble de la Chine. Les revendications à l'origine de ces incidents sont multiples : obtenir une meilleure sécurité sociale, des conditions de travail décentes, une équalité dans les salaires, etc.
 
@@ -79,7 +90,7 @@ ggplot(ts, aes(x = timespan, y = n)) +
   scale_x_discrete(breaks = paste0(2012:2017, "-01")) +
   facet_wrap(~ id, ncol = 3, scales = "free") +
   labs(title = paste("Nombre d'incidents répertoriés par",
-                     "le China Labour Bulletin entre 2011 et 2017"),
+                     "le China Labour Bulletin entre 2011 et 2016"),
        subtitle = paste("Note : l'échelle des ordonnées est différente",
                         "pour chaque graphique"),
        x = "", y = "",
@@ -87,35 +98,33 @@ ggplot(ts, aes(x = timespan, y = n)) +
   theme_bw_2()
 ```
 
-Si le nombre d'incidents a régulièrement augmenté entre 2011 et 2015, il semble diminuer depuis. Notons également la présence de pics importants lors des premiers jours de 2015 et de 2016.
+Si le nombre d'incidents a régulièrement augmenté entre 2011 et 2015, il semble avoir stagné en 2016. Notons également la présence de pics importants lors des premiers jours de 2015 et de 2016.
 
-Le graphique ci-après confirme la baisse du nombre d'incidents reportés depuis deux ans.
+Le graphique ci-après confirme cette stagnation observée en 2016.
 
 ```{r year, echo=FALSE, fig.width=16, fig.height=9, message=FALSE}
 # ---- year ----
 
 # count(df, year, sort = TRUE)
 
-year_lollipop <- draw_lollipop(
+draw_lollipop(
   df,
   var = "year",
-  title = paste("En forte augmentation entre 2011 et 2015,",
-                "le nombre d'incidents diminue depuis"),
+  title = paste("Après avoir fortement augmenté entre 2011 et 2015,",
+                "le nombre d'incidents a été stable en 2016"),
   subtitle = paste("Évolution du nombre d'incidents répertoriés",
-                   "par le China Labour Bulletin entre 2011 et 2017"),
+                   "par le China Labour Bulletin entre 2011 et 2016"),
   caption = "données : http://www.clb.org.hk/",
   panel.grid.major.y = element_blank()
 ) +
   scale_x_discrete(limits = as.character(rev(2011:2017)))
-
-year_lollipop
 ```
 
 ### Répartition des incidents au sein des régions administratives
 
 Après le temps, un autre axe d'analyse envisageable est l'espace.
 
-Le graphique ci-après représente le nombre d'incidents répertoriés au sein de chaque région administrative lors des sept années concernées.
+Le graphique ci-après représente le nombre d'incidents répertoriés au sein de chaque région administrative lors des six années étudiées.
 
 ```{r province_1, echo=FALSE, fig.width=16, fig.height=9}
 # ---- province ----
@@ -124,7 +133,7 @@ Le graphique ci-après représente le nombre d'incidents répertoriés au sein d
 
 df_province <- mutate(df, province = ifelse(province == 0, NA, province))
 
-province_lollipop <- draw_lollipop(
+draw_lollipop(
   df_province,
   var = "province",
   title = paste("La région de Guangdong (Canton) concentre",
@@ -134,8 +143,6 @@ province_lollipop <- draw_lollipop(
   caption = "données : http://www.clb.org.hk/",
   panel.grid.major.y = element_blank()
 )
-
-province_lollipop
 ```
 
 La région de Guangdong - ou Canton - est la région qui concentre la plupart des incidents. Notons que cette région est aussi la plus peuplée de Chine.
@@ -146,26 +153,25 @@ Notons qu'il pourrait être intéressant de considérer le nombre d'incidents pa
 Une vision prenant en compte l'évolution du nombre d'incidents au cours de la période est donnée ci-dessous.
 
 ```{r province_2, echo=FALSE, fig.width=16, fig.height=9}
-province_multilineplot <- draw_multilineplot(
+draw_multilineplot(
   df = filter(df_province, !(is.na(province) | province == "Tibet")), 
   var = "province",
   by_var = "year_s",
-  title = paste("L'évolution du nombre d'incidents suit une",
-                "trajectoire plutôt semblable dans l'ensemble des régions"),
+  title = paste("Si le nombre d'incidents a diminué en 2016 dans la région",
+                "de Guangdong, la tendance à la hausse persiste pour",
+                "un certain nombre d'autres régions"),
   subtitle = paste("Évolution du nombre d'incidents répertoriés par région",
-                   "entre 2011 et 2017 par le China Labour Bulletin"),
+                   "entre 2011 et 2016 par le China Labour Bulletin"),
   ncol = 6,
   caption = "données : http://www.clb.org.hk/"
 )
-
-province_multilineplot
 ```
 
-L'évolution au sein de chaque région est semblable à celle observée globalement : une croissance du nombre d'incidents de 2011 à 2015 et une diminution de ceux-ci depuis.
+Si le nombre d'incidents à significativement diminué dans la région de Guangdong sur l'année 2016, cette tendance ne se vérifie pas dans l'ensemble des autres provinces. La province de Jiangsu par exemple continue de voir le nombre d'incidents reportés augmenter.
 
 ### Répartition des incidents par type d'industrie
 
-Plusieurs types d'industrie sont répertoriés mais deux se détachent en termes de nombres d'incidents : le secteur du bâtiment et les entreprises du secteur de la production industrielle.  
+Plusieurs types d'industrie sont répertoriés mais deux se détachent en termes de nombres d'incidents : les entreprises du secteur de la production industrielle et le secteur du bâtiment.  
 Viennent ensuite les transports et les services.
 
 ```{r industry_1, echo=FALSE, fig.width=16, fig.height=9}
@@ -173,37 +179,34 @@ Viennent ensuite les transports et les services.
 
 # count(df, industry, sort = TRUE)
 
-industry_lollipop <- draw_lollipop(
+draw_lollipop(
   df,
   var = "industry",
-  title = paste("Bâtiment et production sont les deux secteurs",
+  title = paste("Production et bâtiment sont les deux secteurs",
                 "où le nombre d'incidents est le plus important"),
   subtitle = paste("Nombre d'incidents répertoriés par type d'industrie",
                    "par le China Labour Bulletin"),
   caption = "données : http://www.clb.org.hk/",
   panel.grid.major.y = element_blank()
 )
-
-industry_lollipop
 ```
 
-Si l'on se concentre sur l'évolution annuelle, l'on peut noter la baisse généralisée du nombre d'incidents sur l'année 2017.
+Si l'on se concentre sur l'évolution annuelle, l'on peut noter que le nombre d'incidents a baissé sur l'année 2016 dans le secteur de la production mais a continué à augmenter dans celui du bâtiment, des transports ou des services.
 
 ```{r industry_2, echo=FALSE, fig.width=16, fig.height=9}
-industry_multilineplot <- draw_multilineplot(
+draw_multilineplot(
   df,
   var = "industry",
   by_var = "year_s",
-  title = paste("La baisse manifeste du nombre d'incidents en 2017 est",
-                "observable dans l'ensemble des secteurs"),
+  title = paste("Si le nombre d'incidents a fortement baissé dans le secteur",
+                "de la production en 2016, il a continué à augmenter dans",
+                "quasiment tous les autres secteurs"),
   subtitle = paste("Évolution du nombre d'incidents répertoriés par type",
-                   "d'industrie entre 2011 et 2017",
+                   "d'industrie entre 2011 et 2016",
                    "par le China Labour Bulletin"),
   ncol = 3,
   caption = "données : http://www.clb.org.hk/"
 )
-
-industry_multilineplot
 ```
 
 ### Répartition des incidents par nombre de participants
@@ -219,7 +222,7 @@ Le comptage est fait de façon qualitative plutôt que quantitative : entre 1 et
 # remove the " Persons" suffix for aesthetic purposes
 df_participants <- mutate(df, participants = gsub(" Persons", "", participants))
 
-participants_lollipop <- draw_lollipop(
+draw_lollipop(
   df_participants,
   var = "participants",
   title = paste("La majorité des incidents impliquent des groupes",
@@ -229,35 +232,32 @@ participants_lollipop <- draw_lollipop(
   caption = "données : http://www.clb.org.hk/",
   panel.grid.major.y = element_blank()
 )
-
-participants_lollipop
 ```
 
 La très grande majorité des incidents ont impliqué des groupes de 100 personnes ou moins.
-Le nombre d'incidents réportoriés par le China Labour Bulletin où le nombre de travailleurs a dépassé 10 000 est de huit entre 2011 et fin 2017.
+Le nombre d'incidents réportoriés par le China Labour Bulletin où le nombre de travailleurs a dépassé 10 000 est inférieur à dix (huit exactement) entre 2011 et fin 2016.
 
 L'évolution année par année est sans grande surprise.
 
 ```{r participants_2, echo=FALSE, fig.width=16, fig.height=9}
-participants_multilineplot <- draw_multilineplot(
+draw_multilineplot(
   df_participants,
   var = "participants",
   by_var = "year_s",
   ncol = 3,
-  title = paste("Aucun incident impliquant plus de 10 000 personnes",
-                "n'a été répertorié lors des trois dernières années"),
+  title = paste("La forte croissance du nombre d'incidents entre 2011 et 2016",
+                "s'explique par celle des incidents impliquant 100 personnes",
+                "ou moins"),
   subtitle = paste("Évolution du nombre d'incidents répertoriés par nombre",
-                   "de participants entre 2011 et 2017",
+                   "de participants entre 2011 et 2016",
                    "par le China Labour Bulletin"),
   caption = "données : http://www.clb.org.hk/"
 )
-
-participants_multilineplot
 ```
 
 ### Répartition des incidents par employeur
 
-Ci-après est représenté les douze employeurs les plus concernés en termes de nombre d'incidents. On y retrouve aussi bien des grands groupes nationaux (*State Grid,* *China Mobile* par exemple), que des *start-up* comme *Didi Chuxing* ou des groupes étrangers (*Walmart*).
+Ci-après sont représentés les douze employeurs les plus concernés en termes d'incidents. On y retrouve aussi bien des grands groupes nationaux (*State Grid,* *China Mobile* par exemple), que des *start-up* comme *Didi Chuxing* ou encore des groupes étrangers (*Walmart*).
 
 Attention, les données n'étant pas parfaitement homogènes, il est possible et même probable que certains employeurs soient ortographiés différement au fil du temps, ce qui ajoute du bruit au résultat ici présenté.
 
@@ -280,25 +280,23 @@ df_employer <- right_join(
   by = "employer"
 )
 
-employer_lollipop <- draw_lollipop(
+draw_lollipop(
   df_employer,
   var = "employer",
   title = paste("Plusieurs entreprises ont connu des incidents",
-                "à de multiples reprises entre 2011 et 2017"),
+                "à de multiples reprises entre 2011 et 2016"),
   subtitle = paste("Nombre d'incidents répertoriés par entreprise",
                    "par le China Labour Bulletin"),
   caption = "données : http://www.clb.org.hk/",
   panel.grid.major.y = element_blank()
 )
-
-employer_lollipop
 ```
 
 ### Répartition des incidents par type d'entreprise
 
 Cinq différents types d'entreprise sont répertoriés : privée, étatique, étrangère, détenue par des capitaux en provenance de Hong Kong, Macau ou Taiwan ou encore *joint-venture.*
 
-Dans plus d'un cas sur deux, ce sont des entreprises privées qui sont concernées par les incidents.
+Dans un cas sur deux, ce sont des entreprises privées qui sont concernées par les incidents.
 Notons également que le type d'entreprise est inconnu dans près d'un quart des cas.
 
 ```{r enterprise_type_1, echo=FALSE, fig.width=16, fig.height=9}
@@ -324,23 +322,21 @@ enterprise_type_lollipop <- draw_lollipop(
 enterprise_type_lollipop
 ```
 
-La vue annuelle n'apporte que peu d'information complèmentaire.
+La vue annuelle n'apporte que peu d'information complèmentaire, si ce n'est que le nombre d'incidents a continué à augmenter en 2016 dans les entreprises d'État. 
 
 ```{r enterprise_type_2, echo=FALSE, fig.width=16, fig.height=9}
-enterprise_type_multilineplot <- draw_multilineplot(
+draw_multilineplot(
   df,
   var = "enterprise_type",
   by_var = "year_s",
   ncol = 3,
-  title = paste("La baisse des incidents sur les années 2016 et 2017",
-                "est manifeste pour l'ensemble des types d'entreprise"),
+  title = paste("Le nombre d'incidents a continué à légèrement augmenter",
+                "en 2016 pour les entreprises d'État"),
   subtitle = paste("Évolution du nombre d'incidents répertoriés",
-                   "par type d'entreprise entre 2011 et 2017",
+                   "par type d'entreprise entre 2011 et 2016",
                    "par le China Labour Bulletin"),
   caption = "données : http://www.clb.org.hk/"
 )
-
-enterprise_type_multilineplot
 ```
 
 ### Répartition des incidents par type d'action(s)
@@ -406,7 +402,7 @@ df_action <- left_join(df_action, df_action_labels, by = "action_taken_involve")
 
 # count(df_action, action_taken_involve_labels, sort = TRUE)
 
-action_taken_involve_lollipop <- draw_lollipop(
+draw_lollipop(
   df_action,
   var = "action_taken_involve_labels",
   title = paste("La grande majorité des incidents se traduit",
@@ -416,26 +412,22 @@ action_taken_involve_lollipop <- draw_lollipop(
   caption = "données : http://www.clb.org.hk/",
   panel.grid.major.y = element_blank()
 )
-
-action_taken_involve_lollipop
 ```
 
-Si l'on observe la distribution au fil des ans, on peut remarquer une très forte baisse du nombre de sit-in sur l'année 2017. Cette baisse est également observable pour l'ensemble des autres actions bien que sensiblement moins sévère. 
+Si l'on observe la distribution au fil des ans, on peut remarquer une forte baisse du nombre de sit-in sur l'année 2016.
 
 ```{r action_taken_involve_2, echo=FALSE, fig.width=16, fig.height=9}
-action_taken_involve_multilineplot <- draw_multilineplot(
+draw_multilineplot(
   df_action,
   var = "action_taken_involve_labels",
   by_var = "year_s",
   ncol = 3,
-  title = "Le nombre de sit-in à très fortement baissé en 2017",
+  title = "Le nombre de sit-in a fortement décliné en 2016",
   subtitle = paste("Évolution du nombre d'incidents répertoriés",
-                   "par type d'action(s) entre 2011 et 2017",
+                   "par type d'action(s) entre 2011 et 2016",
                    "par le China Labour Bulletin"),
   caption = "données : http://www.clb.org.hk/"
 )
-
-action_taken_involve_multilineplot
 ```
 
 ### Répartition des incidents par type de demande(s)
@@ -559,7 +551,7 @@ df_employee_demands <- left_join(df_employee_demands,
 
 # count(df_employee_demands, employee_demands_involve_labels, sort = TRUE)
 
-employee_demands_involve_lollipop <- draw_lollipop(
+draw_lollipop(
   df_employee_demands,
   var = "employee_demands_involve_labels",
   title = "La quasi totalité des demandes concerne des arriérés de salaires",
@@ -568,29 +560,24 @@ employee_demands_involve_lollipop <- draw_lollipop(
   caption = "données : http://www.clb.org.hk/",
   panel.grid.major.y = element_blank()
 )
-
-employee_demands_involve_lollipop
 ```
 
-Sans surprise, bien que toujours très majoritaire, le nombre d'incidents ayant pour origine des arriérés de salaires suit la tendance globale et a significativement diminué en 2017 après avoir très fortement crû entre 2011 et 2015.
-Les autres causes ici listées présentent également une trajectoire semblable au fil des ans.
+Bien que toujours très majoritaire, le nombre d'incidents ayant pour origine des arriérés de salaires a stagné en 2016 après une période de très forte croissance entre 2014 et 2015.
 
 ```{r employee_demands_involve_2, echo=FALSE, fig.width=16, fig.height=9}
-employee_demands_involve_multilineplot <- draw_multilineplot(
+draw_multilineplot(
   df_employee_demands,
   var = "employee_demands_involve_labels",
   by_var = "year_s",
   ncol = 6,
-  title = paste("Après cinq années de croissance, le nombre de demandes",
-                "d'arriérés de salaires a significativement diminué",
-                "en 2016 et 2017"),
+  title = paste("Si toujours très majoritaire, le nombre de demandes",
+                "d'arriérés de salaires a stagné en 2016 après deux années",
+                "de très forte croissance"),
   subtitle = paste("Évolution du nombre d'incidents répertoriés",
-                   "par type de demande(s) entre 2011 et 2017",
+                   "par type de demande(s) entre 2011 et 2016",
                    "par le China Labour Bulletin"),
   caption = "données : http://www.clb.org.hk/"
 )
-
-employee_demands_involve_multilineplot
 ```
 
 ### Répartition des incidents par type de réponse(s)
@@ -658,24 +645,22 @@ df_response <- left_join(df_response, df_response_labels,
 
 # count(df_response, response_to_collective_action_labels, sort = TRUE)
 
-response_to_collective_action_lollipop <- draw_lollipop(
+draw_lollipop(
   df_response,
   var = "response_to_collective_action_labels",
-  title = paste("La réponse apportée aux demandes est généralement policière",
-                "lorsque connue"),
+  title = paste("La réponse apportée aux demandes des salariés",
+                "est généralement policière lorsque connue"),
   subtitle = paste("Nombre d'incidents répertoriés par type de réponse(s)",
                    "par le China Labour Bulletin"),
   caption = "données : http://www.clb.org.hk/",
   panel.grid.major.y = element_blank()
 )
-
-response_to_collective_action_lollipop
 ```
 
 L'évolution annuelle ne révèle que peu d'information supplémentaire.
 
 ```{r response_to_collective_action_2, echo=FALSE, fig.width=16, fig.height=9}
-response_to_collective_action_multilineplot <- draw_multilineplot(
+draw_multilineplot(
   df_response,
   var = "response_to_collective_action_labels",
   by_var = "year_s",
@@ -683,12 +668,10 @@ response_to_collective_action_multilineplot <- draw_multilineplot(
   title = paste("Peu de différences tendancielles sont observables entre",
                 "les principales réponses apportées"),
   subtitle = paste("Évolution du nombre d'incidents répertoriés par",
-                   "type de réponse(s) entre 2011 et 2017",
+                   "type de réponse(s) entre 2011 et 2016",
                    "par le China Labour Bulletin"),
   caption = "données : http://www.clb.org.hk/"
 )
-
-response_to_collective_action_multilineplot
 ```
 
 ## Cartes
@@ -697,9 +680,9 @@ response_to_collective_action_multilineplot
 
 Il est également possible de représenter la dispersion géographique des incidents sous la forme de cartes.
 
-Par exemple, pour l'année 2017 :
+Par exemple, pour l'année 2016 :
 
-```{r map_2017, echo=FALSE, message=FALSE, fig.width=16, fig.height=9}
+```{r map_2016, echo=FALSE, message=FALSE, fig.width=16, fig.height=9}
 # load a shapefile of the administrative regions of china
 sf_china <- read_sf("data/shapefiles/CHN_adm1.shp")
 
@@ -765,7 +748,7 @@ map_china <- function(df, metric, filter_year, title, legend, caption = "") {
           panel.grid.major = element_line(color = "#ffffff", size = 0))
 }
 
-map_china(df = df_map_year, metric = "n", filter_year = "2017",
+map_china(df = df_map_year, metric = "n", filter_year = "2016",
           title =
                 paste("Répartition du nombre d'incidents répertoriés",
                       "par région administrative par le China Labour Bulletin"),
@@ -785,10 +768,10 @@ Une autre possibilité pour visualiser la même information est de construire un
 
 Plutôt que de considérer directement le nombre d'incidents, il est possible de visualiser le nombre d'incidents par million d'habitants.
 
-Pour l'année 2017 :
+Pour l'année 2016 :
 
-```{r map_1M_2017, echo=FALSE, fig.width=16, fig.height=9}
-map_china(df = df_map_year, metric = "n_1M", filter_year = "2017",
+```{r map_1M_2016, echo=FALSE, fig.width=16, fig.height=9}
+map_china(df = df_map_year, metric = "n_1M", filter_year = "2016",
           title =
             paste("Répartition du nombre d'incidents répertoriés",
                   "par région administrative par le China Labour Bulletin"),
